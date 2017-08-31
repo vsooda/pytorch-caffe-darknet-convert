@@ -110,7 +110,7 @@ def convert2cpu(gpu_matrix):
 def convert2cpu_long(gpu_matrix):
     return torch.LongTensor(gpu_matrix.size()).copy_(gpu_matrix)
 
-def get_region_boxes(output, conf_thresh, num_classes, anchors, num_anchors, only_objectness=1, validation=False):
+def get_region_boxes(output, conf_thresh, num_classes, anchors, num_anchors, only_objectness=0, validation=False):
     anchor_step = len(anchors)/num_anchors
     if output.dim() == 3:
         output = output.unsqueeze(0)
@@ -216,7 +216,7 @@ def plot_boxes(img, boxes, savename, class_names=None):
         if len(box) >= 7 and class_names:
             cls_conf = box[5]
             cls_id = box[6]
-            print('%s: %f' % (class_names[cls_id], cls_conf))
+            print('%s: %f' % (class_names[cls_id], cls_conf * box[4]))
             classes = len(class_names)
             offset = cls_id * 123457 % classes
             red   = get_color(2, offset, classes)
