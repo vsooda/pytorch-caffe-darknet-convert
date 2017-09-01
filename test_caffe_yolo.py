@@ -9,9 +9,9 @@ import caffe
 import torch
 from utils import nms, get_region_boxes, load_class_names, plot_boxes
 from PIL import Image
+import mxnet as mx
 
-def yolo_region(caffe_out, num_classes, anchors, num_anchors, conf_thresh = 0.3, nms_thresh = 0.6):
-    output = caffe_out['layer25-conv']
+def yolo_region(output, num_classes, anchors, num_anchors, conf_thresh = 0.3, nms_thresh = 0.6):
     output = torch.from_numpy(output).cuda()
     boxes = get_region_boxes(output, conf_thresh, num_classes, anchors, num_anchors)[0]
     boxes = nms(boxes, nms_thresh)
@@ -24,7 +24,7 @@ def preprocess(img, size=416):
     height = img.shape[0]
     width = img.shape[1]
     if size == height and size == width:
-        return img
+        return img, 0, 0
     scale_y = (float)(height) / size
     scale_x = (float)(width) / size
     scale = scale_x
@@ -47,7 +47,7 @@ def preprocess(img, size=416):
     start_y = (float) (start_y) / size
     return fill_img, start_x, start_y
 
-def detect(imgfile, num_classes, num_archors, archors):
+def detect(symbol, params, imgfile, num_classes, num_archors, archors):
     if num_classes == 20:
         namesfile = 'data/voc.names'
     elif num_classes == 80:
@@ -56,24 +56,42 @@ def detect(imgfile, num_classes, num_archors, archors):
         namesfile = 'data/names'
 
     img = cv2.imread(imgfile)
+    # need to disable caffe->mxnet converter `first_conv`, or the channel layout will not be the same
     img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
     img = img / 255.0
     img, start_x, start_y = preprocess(img)
     img = img.astype(np.float32)
     img = img.transpose((2, 0, 1))
+
     # img = Image.open(imgfile).convert('RGB')
     # img = img.resize((416, 416), resample = Image.BILINEAR)
     # img = np.array(img, dtype=np.float32)
     # img = img / 255.0
     # img = img.transpose((2, 0, 1))
 
+    use_caffe = False
+    use_mxnet = True
+    if use_caffe:
+        net = caffe.Net(symbol, params, caffe.TEST)
+        net.blobs['data'].data[...] = img
+        out = net.forward()
+        out = out['layer25-conv']
+    elif use_mxnet:
+        img = img[np.newaxis, :]
+        sym, arg_params, aux_params = mx.model.load_checkpoint('tykk33', 0)
+        mod = mx.mod.Module(symbol=sym, context=mx.cpu(), label_names=None)
+        mod.bind(for_training=False, data_shapes=[('data', (1, 3, 416, 416))])
+        mod.set_params(arg_params, aux_params)
+        from collections import namedtuple
+        Batch = namedtuple('Batch', ['data'])
+        test_input = mx.nd.array(img)
+        input_data = Batch([test_input])
+        mod.forward(input_data)
+        out = mod.get_outputs()[0].asnumpy()
+        print 'mxnet done'
 
-    net.blobs['data'].data[...] = img
-    out = net.forward()
     boxes = yolo_region(out, num_classes, anchors, num_anchors)
-
     class_names = load_class_names(namesfile)
-
     pil_image = Image.open(imgfile)
 
     for box in boxes:
@@ -86,11 +104,11 @@ def detect(imgfile, num_classes, num_archors, archors):
 
 
 if __name__ == "__main__":
-    net_file = 'tykk3.prototxt'
-    caffe_model = 'tykk3.caffemodel'
+    symbol = 'tykk3.prototxt'
+    params = 'tykk3.caffemodel'
     test_image = "data/dog.jpg"
-    #test_image = "resize.png"
-    test_image = "data/eagle.jpg"
+    test_image = "resize.png"
+    #test_image = "data/eagle.jpg"
     anchors_str = "0.738768,0.874946,  2.42204,2.65704,  4.30971,7.04493,  10.246,4.59428,  12.6868,11.8741"
     anchors = anchors_str.split(',')
     anchors = [float(i) for i in anchors]
@@ -99,9 +117,7 @@ if __name__ == "__main__":
     num_anchors = 5
     num_classes = 80
 
-
-    net = caffe.Net(net_file, caffe_model, caffe.TEST)
-    detect(test_image, num_classes, num_anchors, anchors)
+    detect(symbol, params, test_image, num_classes, num_anchors, anchors)
 
 
 
