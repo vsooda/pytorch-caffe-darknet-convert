@@ -21,17 +21,17 @@ def detect(cfgfile, weightfile, imgfile):
         namesfile = 'data/coco.names'
     else:
         namesfile = 'data/names'
-    
-    use_cuda = 1
+
+    use_cuda = 0
     if use_cuda:
         m.cuda()
 
     img = Image.open(imgfile).convert('RGB')
     sized = img.resize((m.width, m.height))
-    
+
     for i in range(2):
         start = time.time()
-        boxes = do_detect(m, sized, 0.5, 0.4, use_cuda)
+        boxes = do_detect(m, sized, 0.3, 0.4, use_cuda)
         finish = time.time()
         if i == 1:
             print('%s: Predicted in %f seconds.' % (imgfile, (finish-start)))

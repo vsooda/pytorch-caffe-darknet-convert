@@ -89,7 +89,7 @@ def nms(boxes, nms_thresh):
 
     det_confs = torch.zeros(len(boxes))
     for i in range(len(boxes)):
-        det_confs[i] = 1-boxes[i][4]                
+        det_confs[i] = 1-boxes[i][4]
 
     _,sortIds = torch.sort(det_confs)
     out_boxes = []
@@ -123,15 +123,15 @@ def get_region_boxes(output, conf_thresh, num_classes, anchors, num_anchors, onl
     all_boxes = []
     output = output.view(batch*num_anchors, 5+num_classes, h*w).transpose(0,1).contiguous().view(5+num_classes, batch*num_anchors*h*w)
 
-    grid_x = torch.linspace(0, w-1, w).repeat(h,1).repeat(batch*num_anchors, 1, 1).view(batch*num_anchors*h*w).cuda()
-    grid_y = torch.linspace(0, h-1, h).repeat(w,1).t().repeat(batch*num_anchors, 1, 1).view(batch*num_anchors*h*w).cuda()
+    grid_x = torch.linspace(0, w-1, w).repeat(h,1).repeat(batch*num_anchors, 1, 1).view(batch*num_anchors*h*w)
+    grid_y = torch.linspace(0, h-1, h).repeat(w,1).t().repeat(batch*num_anchors, 1, 1).view(batch*num_anchors*h*w)
     xs = torch.sigmoid(output[0]) + grid_x
     ys = torch.sigmoid(output[1]) + grid_y
 
     anchor_w = torch.Tensor(anchors).view(num_anchors, anchor_step).index_select(1, torch.LongTensor([0]))
     anchor_h = torch.Tensor(anchors).view(num_anchors, anchor_step).index_select(1, torch.LongTensor([1]))
-    anchor_w = anchor_w.repeat(batch, 1).repeat(1, 1, h*w).view(batch*num_anchors*h*w).cuda()
-    anchor_h = anchor_h.repeat(batch, 1).repeat(1, 1, h*w).view(batch*num_anchors*h*w).cuda()
+    anchor_w = anchor_w.repeat(batch, 1).repeat(1, 1, h*w).view(batch*num_anchors*h*w)
+    anchor_h = anchor_h.repeat(batch, 1).repeat(1, 1, h*w).view(batch*num_anchors*h*w)
     ws = torch.exp(output[2]) * anchor_w
     hs = torch.exp(output[3]) * anchor_h
 
@@ -142,7 +142,7 @@ def get_region_boxes(output, conf_thresh, num_classes, anchors, num_anchors, onl
     cls_max_confs = cls_max_confs.view(-1)
     cls_max_ids = cls_max_ids.view(-1)
     t1 = time.time()
-    
+
     sz_hw = h*w
     sz_hwa = sz_hw*num_anchors
     det_confs = convert2cpu(det_confs)
@@ -166,7 +166,7 @@ def get_region_boxes(output, conf_thresh, num_classes, anchors, num_anchors, onl
                         conf =  det_confs[ind]
                     else:
                         conf = det_confs[ind] * cls_max_confs[ind]
-    
+
                     if conf > conf_thresh:
                         bcx = xs[ind]
                         bcy = ys[ind]
@@ -339,7 +339,7 @@ def get_image_size(fname):
     from draco'''
     with open(fname, 'rb') as fhandle:
         head = fhandle.read(24)
-        if len(head) != 24: 
+        if len(head) != 24:
             return
         if imghdr.what(fname) == 'png':
             check = struct.unpack('>i', head[4:8])[0]
@@ -351,15 +351,15 @@ def get_image_size(fname):
         elif imghdr.what(fname) == 'jpeg' or imghdr.what(fname) == 'jpg':
             try:
                 fhandle.seek(0) # Read 0xff next
-                size = 2 
-                ftype = 0 
+                size = 2
+                ftype = 0
                 while not 0xc0 <= ftype <= 0xcf:
                     fhandle.seek(size, 1)
                     byte = fhandle.read(1)
                     while ord(byte) == 0xff:
                         byte = fhandle.read(1)
                     ftype = ord(byte)
-                    size = struct.unpack('>H', fhandle.read(2))[0] - 2 
+                    size = struct.unpack('>H', fhandle.read(2))[0] - 2
                 # We are at a SOFn block
                 fhandle.seek(1, 1)  # Skip `precision' byte.
                 height, width = struct.unpack('>HH', fhandle.read(4))

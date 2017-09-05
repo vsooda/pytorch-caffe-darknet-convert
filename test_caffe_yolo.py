@@ -12,7 +12,7 @@ from PIL import Image
 import mxnet as mx
 
 def yolo_region(output, num_classes, anchors, num_anchors, conf_thresh = 0.3, nms_thresh = 0.6):
-    output = torch.from_numpy(output).cuda()
+    output = torch.from_numpy(output)
     boxes = get_region_boxes(output, conf_thresh, num_classes, anchors, num_anchors)[0]
     boxes = nms(boxes, nms_thresh)
     print 'do postprocess'
@@ -69,7 +69,7 @@ def detect(symbol, params, imgfile, num_classes, num_archors, archors):
     # img = img / 255.0
     # img = img.transpose((2, 0, 1))
 
-    use_caffe = False
+    use_caffe = True
     use_mxnet = True
     if use_caffe:
         net = caffe.Net(symbol, params, caffe.TEST)
@@ -78,7 +78,7 @@ def detect(symbol, params, imgfile, num_classes, num_archors, archors):
         out = out['layer25-conv']
     elif use_mxnet:
         img = img[np.newaxis, :]
-        sym, arg_params, aux_params = mx.model.load_checkpoint('tykk33', 0)
+        sym, arg_params, aux_params = mx.model.load_checkpoint('tykk3', 0)
         mod = mx.mod.Module(symbol=sym, context=mx.cpu(), label_names=None)
         mod.bind(for_training=False, data_shapes=[('data', (1, 3, 416, 416))])
         mod.set_params(arg_params, aux_params)
