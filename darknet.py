@@ -85,8 +85,8 @@ class Darknet(nn.Module):
             self.anchor_step = len(self.anchors)/self.num_anchors
             self.num_classes = int(region_block['classes'])
 
-        self.header = torch.IntTensor([0,0,0,0])
-        self.seen = 0
+        self.header = torch.IntTensor([0,0,0])
+        self.seen = torch.LongTensor([0])
         self.has_mean = False
 
     def forward(self, x):
@@ -143,7 +143,7 @@ class Darknet(nn.Module):
 
     def create_network(self, blocks):
         models = nn.ModuleList()
-    
+
         prev_filters = 3
         out_filters =[]
         out_width =[]
@@ -317,7 +317,7 @@ class Darknet(nn.Module):
                 continue
             else:
                 print('unknown type %s' % (block['type']))
-    
+
         return models
 
     def load_weights(self, weightfile):
@@ -338,9 +338,15 @@ class Darknet(nn.Module):
             self.mean_img.copy_(mean_img)
 
         fp = open(weightfile, 'rb')
-        header = np.fromfile(fp, count=4, dtype=np.int32)
+        header = np.fromfile(fp, count=3, dtype=np.int32)
         self.header = torch.from_numpy(header)
-        self.seen = self.header[3]
+        major = self.header[0]
+        minor = self.header[1]
+        if major * 10 + minor >= 2:
+            seen = np.fromfile(fp, count=1, dtype=np.int64)
+        else:
+            seen = np.fromfile(fp, count=1, dtype=np.int32)
+        self.seen[0] = seen[0]
         buf = np.fromfile(fp, dtype = np.float32)
         fp.close()
 
@@ -400,9 +406,12 @@ class Darknet(nn.Module):
             cutoff = len(self.blocks)-1
 
         fp = open(outfile, 'wb')
-        self.header[3] = self.seen
         header = self.header
+        #save as new version model
+        header[1] = 2
         header.numpy().tofile(fp)
+
+        self.seen.numpy().tofile(fp)
 
         ind = -1
         is_first = True;
@@ -458,9 +467,10 @@ class Darknet(nn.Module):
 
         # shrink weights
         fp = open(out_weightfile, 'wb')
-        self.header[3] = self.seen
         header = self.header
+        header[1] = 2
         header.numpy().tofile(fp)
+        self.seen.numpy().tofile(fp)
 
         ind = -1
         is_first = True
@@ -514,7 +524,7 @@ class Darknet(nn.Module):
         blocks = self.blocks
         for block in blocks:
             if block['type'] == 'convolutional':
-               block['batch_normalize'] = '0' 
+               block['batch_normalize'] = '0'
         save_cfg(blocks, out_cfgfile)
 
 if __name__ == '__main__':
