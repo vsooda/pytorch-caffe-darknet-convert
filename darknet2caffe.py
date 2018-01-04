@@ -15,7 +15,13 @@ def darknet2caffe(cfgfile, weightfile, protofile, caffemodel):
 
     blocks = parse_cfg(cfgfile)
     fp = open(weightfile, 'rb')
-    header = np.fromfile(fp, count=4, dtype=np.int32)
+    header = np.fromfile(fp, count=3, dtype=np.int32)
+    major = header[0]
+    minor = header[1]
+    if major * 10 + minor >= 2:
+        seen = np.fromfile(fp, count=1, dtype=np.int64)
+    else:
+        seen = np.fromfile(fp, count=1, dtype=np.int32)
     buf = np.fromfile(fp, dtype = np.float32)
     fp.close()
 
