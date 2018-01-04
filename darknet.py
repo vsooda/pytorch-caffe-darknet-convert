@@ -346,7 +346,7 @@ class Darknet(nn.Module):
             seen = np.fromfile(fp, count=1, dtype=np.int64)
         else:
             seen = np.fromfile(fp, count=1, dtype=np.int32)
-        self.seen[0] = seen[0]
+        self.seen[0] = np.int64(seen[0])
         buf = np.fromfile(fp, dtype = np.float32)
         fp.close()
 
